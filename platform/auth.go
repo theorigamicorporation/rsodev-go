@@ -23,6 +23,10 @@ var ErrNotSignedIn = errors.New("platform: not signed in")
 
 // OAuth describes the identity provider the platform signs in with.
 type OAuth struct {
+	// Endpoint is the gateway's GraphQL endpoint. When set, whatever is left
+	// empty below is read from the gateway's configuration document before
+	// the defaults apply.
+	Endpoint string
 	TokenURL string
 	// DeviceURL starts the device sign-in. Empty derives it from TokenURL.
 	DeviceURL  string
@@ -125,7 +129,7 @@ func (r tokenResponse) set(now time.Time) (TokenSet, error) {
 
 // ServiceAccount exchanges a service account's name and secret for a token.
 func (o OAuth) ServiceAccount(ctx context.Context, name, secret string) (TokenSet, error) {
-	o = o.withDefaults()
+	o = o.resolve(ctx)
 	var out tokenResponse
 	err := o.post(ctx, o.TokenURL, url.Values{
 		"grant_type": {"client_credentials"},
@@ -142,7 +146,7 @@ func (o OAuth) ServiceAccount(ctx context.Context, name, secret string) (TokenSe
 
 // Refresh trades a refresh token for a new token set.
 func (o OAuth) Refresh(ctx context.Context, refreshToken string) (TokenSet, error) {
-	o = o.withDefaults()
+	o = o.resolve(ctx)
 	var out tokenResponse
 	err := o.post(ctx, o.TokenURL, url.Values{
 		"grant_type":    {"refresh_token"},
@@ -176,7 +180,7 @@ const deviceScopes = "openid profile email offline_access"
 
 // StartDevice begins a device sign-in.
 func (o OAuth) StartDevice(ctx context.Context) (DeviceCode, error) {
-	o = o.withDefaults()
+	o = o.resolve(ctx)
 	var out DeviceCode
 	err := o.post(ctx, o.DeviceURL, url.Values{"client_id": {o.ClientID}, "scope": {deviceScopes}}, &out)
 	if err != nil {
@@ -191,7 +195,7 @@ func (o OAuth) StartDevice(ctx context.Context) (DeviceCode, error) {
 // WaitDevice polls until the person has confirmed the sign-in, refused it,
 // or the code has expired.
 func (o OAuth) WaitDevice(ctx context.Context, code DeviceCode) (TokenSet, error) {
-	o = o.withDefaults()
+	o = o.resolve(ctx)
 	interval := time.Duration(code.Interval) * time.Second
 	if interval <= 0 {
 		interval = 5 * time.Second

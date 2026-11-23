@@ -61,9 +61,11 @@ func WithRetry(policy RetryPolicy) Option { return func(c *config) { c.retry = p
 func WithEndpoint(endpoint string) Option { return func(c *config) { c.endpoint = endpoint } }
 
 // WithTokenURL sets the OAuth2 token endpoint service accounts sign in at.
+// Unset, it is read from the gateway's configuration document.
 func WithTokenURL(tokenURL string) Option { return func(c *config) { c.tokenURL = tokenURL } }
 
-// WithClientID sets the OAuth2 client id used for the sign-in.
+// WithClientID sets the OAuth2 client id used for the sign-in. Unset, it is
+// read from the gateway's configuration document.
 func WithClientID(clientID string) Option { return func(c *config) { c.clientID = clientID } }
 
 // WithRegion selects a region of the tenant; the gateway's default applies
@@ -84,7 +86,7 @@ type Client struct {
 
 // New builds a Client. It fails when no credentials are given.
 func New(opts ...Option) (*Client, error) {
-	cfg := config{endpoint: DefaultEndpoint, tokenURL: DefaultTokenURL, clientID: DefaultClientID, retry: DefaultRetry}
+	cfg := config{endpoint: DefaultEndpoint, retry: DefaultRetry}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -92,7 +94,7 @@ func New(opts ...Option) (*Client, error) {
 		cfg.httpClient = &http.Client{Timeout: 60 * time.Second}
 	}
 	c := &Client{cfg: cfg}
-	oauth := OAuth{TokenURL: cfg.tokenURL, ClientID: cfg.clientID, HTTPClient: cfg.httpClient}
+	oauth := OAuth{Endpoint: cfg.endpoint, TokenURL: cfg.tokenURL, ClientID: cfg.clientID, HTTPClient: cfg.httpClient}
 	switch {
 	case cfg.tokens != nil:
 		c.tokens = cfg.tokens
