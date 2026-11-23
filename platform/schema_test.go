@@ -82,6 +82,7 @@ func everyOperation(ctx context.Context, c *Client) {
 	_, _ = c.Me(ctx)
 	_, _ = c.Permissions(ctx)
 	_, _ = c.Quota(ctx)
+	_, _ = c.CostEstimate(ctx, EstimateInput{Instances: []EstimateItem{{VCPU: 2, RAMGB: 4, DiskGB: 20, Count: 1}}, Apps: []EstimateItem{{VCPU: 1, RAMGB: 1}}, Postgres: []EstimateItem{{VCPU: 1, RAMGB: 2, DiskGB: 10, Count: 2}}})
 	_, _ = c.PlatformEvents(ctx)
 
 	app := AppInput{Name: "web", Metadata: &AppMetadata{Labels: []KeyValue{{Key: "k", Value: "v"}}}, Template: AppTemplate{
@@ -231,6 +232,9 @@ func everyOperation(ctx context.Context, c *Client) {
 	_, _ = c.AddSSHKey(ctx, "laptop", "ssh-ed25519 AAAA")
 	_, _ = c.RenameSSHKey(ctx, "id", "desk")
 	_ = c.DeleteSSHKey(ctx, "id")
+	_, _ = c.AddPersonalSSHKey(ctx, "laptop", "ssh-ed25519 AAAA")
+	_, _ = c.RenamePersonalSSHKey(ctx, "id", "desk")
+	_ = c.DeletePersonalSSHKey(ctx, "id")
 	_, _ = c.ListVolumes(ctx)
 	_, _ = c.CreateVolume(ctx, "data", 10)
 	_ = c.DeleteVolume(ctx, "data")

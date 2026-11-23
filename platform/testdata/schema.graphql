@@ -25,6 +25,7 @@ enum AiModelStatus {
 }
 
 type AiModelUsage {
+  currency: String!
   requests: Int!
 }
 
@@ -53,6 +54,12 @@ input AppContainerInput {
   resources: ResourceRequirementsInput
   securityContext: SecurityContextInput
   volumeMounts: [VolumeMountInput!]
+}
+
+input AppEstimateInput {
+  count: Int
+  ramGb: Float!
+  vcpu: Float!
 }
 
 input AppInput {
@@ -204,6 +211,30 @@ type ContainerPort {
 input ContainerPortInput {
   containerPort: Int!
   name: String
+}
+
+type CostEstimate {
+  currency: String!
+  hourlyTotal: Float!
+  hoursPerMonth: Int!
+  lines: [CostEstimateLine!]!
+  monthlyTotal: Float!
+}
+
+input CostEstimateInput {
+  apps: [AppEstimateInput!]
+  instances: [InstanceEstimateInput!]
+  postgres: [PostgresEstimateInput!]
+}
+
+type CostEstimateLine {
+  description: String!
+  hourly: Float!
+  monthly: Float!
+  qty: Float!
+  sku: String!
+  unit: String!
+  unitPrice: Float!
 }
 
 input CreateBucketNotificationInput {
@@ -560,6 +591,13 @@ type InstanceConfig {
   volumes: [VolumeReference!]!
 }
 
+input InstanceEstimateInput {
+  count: Int
+  diskGb: Float!
+  ramGb: Float!
+  vcpu: Float!
+}
+
 type InstanceListResult {
   items: [Instance!]!
   total: Int!
@@ -616,6 +654,7 @@ input MiddlewareInput {
 }
 
 type Mutation {
+  addPersonalSshKey(input: AddSshKeyInput!): SshKey!
   addSshKey(input: AddSshKeyInput!): SshKey!
   addTenantClusterPool(cluster: String!, pool: TenantClusterPoolInput!): TenantCluster!
   backupPostgresCluster(clusterId: ID, clusterName: String!, namespace: String!): BackupEntry!
@@ -655,6 +694,7 @@ type Mutation {
   deleteInstance(vmid: Int!): Boolean!
   deleteMiddleware(id: ID!): Boolean!
   deleteObjectStorageKey(name: String!): Boolean!
+  deletePersonalSshKey(id: ID!): Boolean!
   deletePostgresCluster(clusterId: ID, keepBackups: Boolean!, name: String!, namespace: String!): Boolean!
   deletePostgresDatabase(clusterId: ID, clusterName: String!, name: String!, namespace: String!): Boolean!
   deleteQueue(name: String!): Boolean!
@@ -676,6 +716,7 @@ type Mutation {
   rebootInstance(vmid: Int!): Boolean!
   removePostgresBackupSchedule(clusterId: ID, clusterName: String!, namespace: String!): Boolean!
   removeTenantClusterPool(cluster: String!, pool: String!): TenantCluster!
+  renamePersonalSshKey(id: ID!, name: String!): SshKey!
   renameSshKey(id: ID!, name: String!): SshKey!
   resizeInstance(input: ResizeInstanceInput!): Boolean!
   resizeInstanceDisk(input: ResizeInstanceDiskInput!): Boolean!
@@ -874,6 +915,13 @@ input PostgresConfigInput {
   parameters: PostgresParametersInput
 }
 
+input PostgresEstimateInput {
+  diskGb: Float!
+  ramGb: Float!
+  replicas: Int
+  vcpu: Float!
+}
+
 input PostgresParametersInput {
   autovacuum: String
   autovacuum_max_workers: String
@@ -896,7 +944,7 @@ type PostgresRecoveryWindow {
 }
 
 type ProductUsage {
-  _: Boolean
+  currency: String!
 }
 
 type Query {
@@ -906,6 +954,7 @@ type Query {
   apps(clusterId: ID, namespace: String): AppListResult!
   bucketNotifications(bucket: String): [BucketNotification!]!
   buckets: [Bucket!]!
+  costEstimate(input: CostEstimateInput!): CostEstimate!
   dnsAvailable: Boolean!
   dnsRecord(id: ID!): DnsRecord!
   dnsRecords(zone: String): [DnsRecord!]!
@@ -1337,6 +1386,7 @@ type Service {
   namespace: String
   port: Int!
   scheme: String
+  serversTransport: String
 }
 
 type ServiceAccount {
@@ -1387,6 +1437,7 @@ type SshKey {
   owner: String
   publicKey: String!
   scope: SshKeyScope!
+  usable: Boolean!
 }
 
 enum SshKeyScope {
@@ -1523,6 +1574,7 @@ type TenantVolume {
   kind: TenantVolumeKind!
   name: String!
   sizeGb: Float!
+  sku: String!
   status: String
   storage: String
   usedBy: [String!]!

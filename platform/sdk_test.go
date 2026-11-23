@@ -238,3 +238,72 @@ func TestChatStreamsAndReportsUsage(t *testing.T) {
 		t.Fatalf("%q, %+v, %v", text.String(), usage, err)
 	}
 }
+
+func TestIngressRouteWithoutCertificateSendsAnExplicitNull(t *testing.T) {
+	var input map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string `json:"query"`
+			Variables struct {
+				Input map[string]any `json:"input"`
+			} `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if strings.Contains(body.Query, "createIngressRoute") {
+			input = body.Variables.Input
+			_, _ = w.Write([]byte(`{"data":{"createIngressRoute":{"name":"plain","entryPoints":["e"],"certResolver":null,"routes":[]}}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"ingressRoute":{"name":"","routes":[]}}}`))
+	}))
+	defer server.Close()
+	c, err := New(WithAccessToken("token"), WithEndpoint(server.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport := "slow"
+	route, err := c.CreateIngressRoute(context.Background(), IngressRoute{Name: "plain", NoTLS: true,
+		Routes: []RouteRule{{Match: "Host(`plain.example.com`)", Services: []RouteService{{Name: "vm", Port: 80, ServersTransport: &transport}}}}})
+	if err != nil || !route.NoTLS {
+		t.Fatalf("%+v, %v", route, err)
+	}
+	if value, present := input["certResolver"]; !present || value != nil {
+		t.Fatalf("certResolver must be an explicit null, got %v (present %v)", value, present)
+	}
+	service := input["routes"].([]any)[0].(map[string]any)["services"].([]any)[0].(map[string]any)
+	if service["serversTransport"] != "slow" {
+		t.Fatalf("serversTransport not sent: %v", service)
+	}
+	if _, err := c.GetIngressRoute(context.Background(), "gone"); !IsNotFound(err) {
+		t.Fatalf("a missing route must be not found, got %v", err)
+	}
+}
+
+func TestCostEstimateSendsOnlyWhatIsAsked(t *testing.T) {
+	var input map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Variables struct {
+				Input map[string]any `json:"input"`
+			} `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		input = body.Variables.Input
+		_, _ = w.Write([]byte(`{"data":{"costEstimate":{"currency":"EUR","hourlyTotal":0.5,"monthlyTotal":365,"hoursPerMonth":730,"lines":[{"sku":"vcpu","qty":2}]}}}`))
+	}))
+	defer server.Close()
+	c, err := New(WithAccessToken("token"), WithEndpoint(server.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	estimate, err := c.CostEstimate(context.Background(), EstimateInput{Instances: []EstimateItem{{VCPU: 2, RAMGB: 4, DiskGB: 20}}})
+	if err != nil || estimate.Currency != "EUR" || estimate.MonthlyTotal != 365 || len(estimate.Lines) != 1 {
+		t.Fatalf("%+v, %v", estimate, err)
+	}
+	if _, sent := input["apps"]; sent || len(input["instances"].([]any)) != 1 {
+		t.Fatalf("input: %v", input)
+	}
+	if _, sent := input["instances"].([]any)[0].(map[string]any)["count"]; sent {
+		t.Fatalf("a zero count must be left out: %v", input)
+	}
+}

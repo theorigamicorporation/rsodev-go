@@ -200,9 +200,11 @@ type SSHKey struct {
 	Scope     string `json:"scope"`
 	CreatedAt string `json:"createdAt"`
 	CreatedBy string `json:"createdBy"`
+	// Usable says whether the caller may install the key on an instance.
+	Usable bool `json:"usable"`
 }
 
-const sshKeyFields = `id name publicKey fingerprint keyType comment scope createdAt createdBy`
+const sshKeyFields = `id name publicKey fingerprint keyType comment scope createdAt createdBy usable`
 
 // ListSSHKeys lists the keys the caller can use: the tenant's and its own.
 func (c *Client) ListSSHKeys(ctx context.Context) ([]SSHKey, error) {
@@ -250,6 +252,31 @@ func (c *Client) RenameSSHKey(ctx context.Context, id, name string) (*SSHKey, er
 // already have it keep it.
 func (c *Client) DeleteSSHKey(ctx context.Context, id string) error {
 	return c.Do(ctx, `mutation($id: ID!) { deleteSshKey(id: $id) }`, map[string]any{"id": id}, nil)
+}
+
+// AddPersonalSSHKey stores one public key line for the caller alone; other
+// members of the tenant cannot install it.
+func (c *Client) AddPersonalSSHKey(ctx context.Context, name, publicKey string) (*SSHKey, error) {
+	var out struct {
+		Key SSHKey `json:"addPersonalSshKey"`
+	}
+	err := c.Do(ctx, `mutation($input: AddSshKeyInput!) { addPersonalSshKey(input: $input) { `+sshKeyFields+` } }`,
+		map[string]any{"input": map[string]any{"name": name, "publicKey": publicKey}}, &out)
+	return &out.Key, err
+}
+
+// RenamePersonalSSHKey renames a key of the caller.
+func (c *Client) RenamePersonalSSHKey(ctx context.Context, id, name string) (*SSHKey, error) {
+	var out struct {
+		Key SSHKey `json:"renamePersonalSshKey"`
+	}
+	err := c.Do(ctx, `mutation($id: ID!, $name: String!) { renamePersonalSshKey(id: $id, name: $name) { `+sshKeyFields+` } }`, map[string]any{"id": id, "name": name}, &out)
+	return &out.Key, err
+}
+
+// DeletePersonalSSHKey removes a key of the caller from the store.
+func (c *Client) DeletePersonalSSHKey(ctx context.Context, id string) error {
+	return c.Do(ctx, `mutation($id: ID!) { deletePersonalSshKey(id: $id) }`, map[string]any{"id": id}, nil)
 }
 
 // Volume is a block volume of the tenant.

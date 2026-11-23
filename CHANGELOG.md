@@ -17,3 +17,5 @@ follows [Semantic Versioning](https://semver.org/).
   registries, secrets, SSH keys, volumes, Kubernetes clusters, service
   accounts, roles, scoped access and quotas.
 - Waiters, paging helpers, retries for reads and error kinds.
+- Cost estimates, personal SSH keys, ingress routes without a certificate
+  and with transport settings per service.

@@ -106,6 +106,9 @@ func (c *Client) GetExternalService(ctx context.Context, name string) (*External
 	if err != nil {
 		return nil, err
 	}
+	if out.Service.Name == "" {
+		return nil, notFound("external service", name)
+	}
 	return &out.Service, nil
 }
 
@@ -131,6 +134,9 @@ type RouteService struct {
 	Port int    `json:"port"`
 	// Scheme is "http" or "https"; empty lets the platform decide.
 	Scheme *string `json:"scheme,omitempty"`
+	// ServersTransport names the transport settings used towards the
+	// service, for one that needs other than the defaults.
+	ServersTransport *string `json:"serversTransport,omitempty"`
 }
 
 // RouteRule is one rule of an ingress route.
@@ -148,9 +154,12 @@ type IngressRoute struct {
 	Name string `json:"name"`
 	// EntryPoints and CertResolver choose the listener and how the
 	// certificate is obtained; empty takes the platform's defaults.
-	EntryPoints  []string    `json:"entryPoints,omitempty"`
-	CertResolver *string     `json:"certResolver,omitempty"`
-	Routes       []RouteRule `json:"routes"`
+	EntryPoints  []string `json:"entryPoints,omitempty"`
+	CertResolver *string  `json:"certResolver,omitempty"`
+	// NoTLS asks for a route without a certificate; CertResolver is then
+	// ignored. Read back, it is true for a route that has none.
+	NoTLS  bool        `json:"-"`
+	Routes []RouteRule `json:"routes"`
 }
 
 type routeWire struct {
@@ -169,7 +178,7 @@ type ingressRouteWire struct {
 }
 
 func (w ingressRouteWire) route() IngressRoute {
-	route := IngressRoute{Name: w.Name, EntryPoints: w.EntryPoints, CertResolver: w.CertResolver}
+	route := IngressRoute{Name: w.Name, EntryPoints: w.EntryPoints, CertResolver: w.CertResolver, NoTLS: w.CertResolver == nil || *w.CertResolver == ""}
 	for _, rule := range w.Routes {
 		names := make([]string, 0, len(rule.Middlewares))
 		for _, m := range rule.Middlewares {
@@ -180,7 +189,7 @@ func (w ingressRouteWire) route() IngressRoute {
 	return route
 }
 
-const ingressRouteFields = `name entryPoints certResolver routes { match middlewares { name } services { name port scheme } }`
+const ingressRouteFields = `name entryPoints certResolver routes { match middlewares { name } services { name port scheme serversTransport } }`
 
 // IngressRoutesPage returns one page of the tenant's ingress routes.
 func (c *Client) IngressRoutesPage(ctx context.Context, o ListOptions) (*Page[IngressRoute], error) {
@@ -210,6 +219,9 @@ func (c *Client) GetIngressRoute(ctx context.Context, name string) (*IngressRout
 	if err := c.Do(ctx, `query($id: ID!) { ingressRoute(id: $id) { `+ingressRouteFields+` } }`, map[string]any{"id": name}, &out); err != nil {
 		return nil, err
 	}
+	if out.Route.Name == "" {
+		return nil, notFound("ingress route", name)
+	}
 	route := out.Route.route()
 	return &route, nil
 }
@@ -229,6 +241,9 @@ func (c *Client) CreateIngressRoute(ctx context.Context, in IngressRoute) (*Ingr
 			if service.Scheme != nil {
 				entry["scheme"] = *service.Scheme
 			}
+			if service.ServersTransport != nil {
+				entry["serversTransport"] = *service.ServersTransport
+			}
 			services = append(services, entry)
 		}
 		routes = append(routes, map[string]any{"match": rule.Match, "middlewares": middlewares, "services": services})
@@ -237,7 +252,9 @@ func (c *Client) CreateIngressRoute(ctx context.Context, in IngressRoute) (*Ingr
 	if len(in.EntryPoints) > 0 {
 		input["entryPoints"] = in.EntryPoints
 	}
-	if in.CertResolver != nil {
+	if in.NoTLS {
+		input["certResolver"] = nil
+	} else if in.CertResolver != nil {
 		input["certResolver"] = *in.CertResolver
 	}
 	var out struct {
@@ -341,6 +358,9 @@ func (c *Client) GetMiddleware(ctx context.Context, name string) (*Middleware, e
 	}
 	if err := c.Do(ctx, `query($id: ID!) { middleware(id: $id) { `+middlewareFields+` } }`, map[string]any{"id": name}, &out); err != nil {
 		return nil, err
+	}
+	if out.Middleware.Name == "" {
+		return nil, notFound("middleware", name)
 	}
 	middleware := out.Middleware.middleware()
 	return &middleware, nil
