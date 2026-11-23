@@ -16,8 +16,8 @@ import (
 const (
 	DefaultEndpoint = "https://gateway.cloud.rso.dev/graphql"
 	DefaultTokenURL = "https://auth.theorigamicorporation.com/application/o/token/" //nolint:gosec // an address, not a credential
-	// DefaultClientID is the public OAuth client that service accounts sign in through.
-	DefaultClientID = "FdPqdka22aPG9AnWuVMpFhsz7BGsgJCbxTCTkXrg"
+	// DefaultClientID is the public OAuth client people and service accounts sign in through.
+	DefaultClientID = "rso-cli"
 )
 
 // Version is the version of this SDK, sent in the User-Agent header.
