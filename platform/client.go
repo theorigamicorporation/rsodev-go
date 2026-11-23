@@ -21,7 +21,7 @@ const (
 )
 
 // Version is the version of this SDK, sent in the User-Agent header.
-const Version = "0.2.0"
+const Version = "0.2.1"
 
 type config struct {
 	endpoint, tokenURL, clientID  string
