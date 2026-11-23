@@ -113,7 +113,7 @@ func (w secretWire) secret() Secret {
 	return s
 }
 
-const secretFields = `name type creationTimestamp data { key }`
+const secretFields = `name type creationTimestamp data { key }` //nolint:gosec // a field list, not a credential
 
 func secretData(values map[string]string) []map[string]any {
 	data := make([]map[string]any, 0, len(values))

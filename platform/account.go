@@ -68,18 +68,18 @@ type EventType struct {
 	Description string `json:"description"`
 }
 
-// PlatformEvents names the topic platform events are published to and the
+// EventsInfo names the topic platform events are published to and the
 // event types there are.
-type PlatformEvents struct {
+type EventsInfo struct {
 	Available bool        `json:"available"`
 	Topic     string      `json:"topic"`
 	Types     []EventType `json:"types"`
 }
 
 // PlatformEvents returns the events topic and the event types.
-func (c *Client) PlatformEvents(ctx context.Context) (*PlatformEvents, error) {
+func (c *Client) PlatformEvents(ctx context.Context) (*EventsInfo, error) {
 	var out struct {
-		Events PlatformEvents `json:"platformEvents"`
+		Events EventsInfo `json:"platformEvents"`
 	}
 	err := c.Do(ctx, `query { platformEvents { available topic types { type description } } }`, nil, &out)
 	return &out.Events, err

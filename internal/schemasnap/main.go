@@ -88,7 +88,7 @@ func main() {
 }
 
 func run(in, out, source string) error {
-	raw, err := os.ReadFile(in)
+	raw, err := os.ReadFile(in) //nolint:gosec // a developer tool reading the file it was pointed at
 	if err != nil {
 		return err
 	}
@@ -142,13 +142,13 @@ func run(in, out, source string) error {
 		if t == nil || builtin[name] || kept[name] != nil || strings.HasPrefix(name, "__") {
 			return
 		}
-		copy := &fullType{Kind: t.Kind, Name: t.Name}
-		kept[name] = copy
+		pruned := &fullType{Kind: t.Kind, Name: t.Name}
+		kept[name] = pruned
 		for _, f := range t.Fields {
 			if !keep(f) || !used[f.Name] {
 				continue
 			}
-			copy.Fields = append(copy.Fields, f)
+			pruned.Fields = append(pruned.Fields, f)
 			visit(f.Type.named())
 			for _, arg := range f.Args {
 				visit(arg.Type.named())
@@ -158,20 +158,20 @@ func run(in, out, source string) error {
 			if !keep(f) {
 				continue
 			}
-			copy.InputFields = append(copy.InputFields, f)
+			pruned.InputFields = append(pruned.InputFields, f)
 			visit(f.Type.named())
 		}
 		if t.Kind == "UNION" {
 			for _, possible := range t.PossibleTypes {
 				if guard.Refused(possible.Name) == "" {
-					copy.PossibleTypes = append(copy.PossibleTypes, possible)
+					pruned.PossibleTypes = append(pruned.PossibleTypes, possible)
 					visit(possible.Name)
 				}
 			}
 		}
 		for _, v := range t.EnumValues {
 			if !v.IsDeprecated && guard.Refused(v.Name) == "" {
-				copy.EnumValues = append(copy.EnumValues, v)
+				pruned.EnumValues = append(pruned.EnumValues, v)
 			}
 		}
 	}

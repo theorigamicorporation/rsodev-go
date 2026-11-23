@@ -115,7 +115,7 @@ func TestAllCollectsEveryPage(t *testing.T) {
 
 func TestIngressRouteRoundTrip(t *testing.T) {
 	g := newGateway(t)
-	g.handle = func(query string, variables map[string]any) (any, string, string) {
+	g.handle = func(_ string, variables map[string]any) (any, string, string) {
 		input := variables["input"].(map[string]any)
 		rule := input["routes"].([]any)[0].(map[string]any)
 		service := rule["services"].([]any)[0].(map[string]any)

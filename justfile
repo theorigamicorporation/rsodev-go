@@ -1,4 +1,4 @@
-# Developer shortcuts. `just check` is what CI runs.
+# Developer shortcuts. `just check` is what CI runs, plus the race detector.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 

@@ -131,18 +131,18 @@ func (c *Client) PublishToTopic(ctx context.Context, topic, routingKey string, m
 	return out.Routed, err
 }
 
-// Receive takes up to max messages from a queue (the platform caps max).
+// Receive takes up to limit messages from a queue (the platform caps it).
 //
 // A message is acknowledged when it is handed out: a caller that fails after
 // Receive loses it. Use AMQP with a QueueCredential, or a Webhook, when a
 // message must survive a crashed consumer.
-func (c *Client) Receive(ctx context.Context, queue string, max int) ([]ReceivedMessage, error) {
+func (c *Client) Receive(ctx context.Context, queue string, limit int) ([]ReceivedMessage, error) {
 	var out struct {
 		Messages []ReceivedMessage `json:"messages"`
 	}
 	payload := map[string]any{}
-	if max > 0 {
-		payload["max"] = max
+	if limit > 0 {
+		payload["max"] = limit
 	}
 	err := c.post(ctx, "/queues/v1/queues/"+url.PathEscape(queue)+"/receive", payload, &out)
 	return out.Messages, err
