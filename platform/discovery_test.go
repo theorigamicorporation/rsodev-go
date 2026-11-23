@@ -80,7 +80,7 @@ func TestSignInUsesTheDocumentWhenNothingIsSet(t *testing.T) {
 }
 
 func TestSignInKeepsWhatTheCallerSet(t *testing.T) {
-	server, _, lastClient := discoveryServer(t, func(base string) map[string]string {
+	server, _, lastClient := discoveryServer(t, func(_ string) map[string]string {
 		return map[string]string{"token_endpoint": "https://elsewhere.example.com/token", "client_id": "public-client"}
 	})
 	oauth := OAuth{Endpoint: server.URL + "/graphql", TokenURL: server.URL + "/token", ClientID: "mine"}
