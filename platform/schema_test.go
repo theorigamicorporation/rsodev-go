@@ -14,6 +14,7 @@ import (
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/validator"
+	"github.com/vektah/gqlparser/v2/validator/rules"
 )
 
 type recorded struct {
@@ -62,7 +63,7 @@ func TestDocumentsMatchTheSchema(t *testing.T) {
 			continue
 		}
 		seen[call.Query] = true
-		document, errs := gqlparser.LoadQuery(schema, call.Query)
+		document, errs := gqlparser.LoadQueryWithRules(schema, call.Query, rules.NewDefaultRules())
 		if len(errs) > 0 {
 			t.Errorf("%s\n  %v", call.Query, errs)
 			continue
