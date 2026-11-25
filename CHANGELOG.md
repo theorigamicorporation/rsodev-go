@@ -22,3 +22,7 @@ follows [Semantic Versioning](https://semver.org/).
 - Waiters, paging helpers, retries for reads and error kinds.
 - Cost estimates, personal SSH keys, ingress routes without a certificate
   and with transport settings per service.
+
+### Changed
+
+- The module now needs Go 1.25 or newer.

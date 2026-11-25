@@ -20,7 +20,7 @@ are built on it.
 go get github.com/theorigamicorporation/rsodev-go
 ```
 
-Go 1.23 or newer.
+Go 1.25 or newer.
 
 ## Quick start
 
