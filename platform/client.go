@@ -28,6 +28,7 @@ type config struct {
 	tenant, region                string
 	accessToken                   string
 	serviceAccount, serviceSecret string
+	workloadTokenFile             string
 	tokens                        TokenSource
 	userAgent                     string
 	httpClient                    *http.Client
@@ -44,6 +45,14 @@ func WithTenant(tenant string) Option { return func(c *config) { c.tenant = tena
 // WithServiceAccount signs in with a service account's name and secret.
 func WithServiceAccount(name, secret string) Option {
 	return func(c *config) { c.serviceAccount, c.serviceSecret = name, secret }
+}
+
+// WithWorkloadIdentity signs in with the workload's signed token in
+// tokenFile, such as a projected Kubernetes service-account token, and
+// stores no secret. The client the identity provider knows the workload by
+// is set with WithClientID.
+func WithWorkloadIdentity(tokenFile string) Option {
+	return func(c *config) { c.workloadTokenFile = tokenFile }
 }
 
 // WithAccessToken uses a ready access token instead of a service account. The
@@ -98,6 +107,8 @@ func New(opts ...Option) (*Client, error) {
 	switch {
 	case cfg.tokens != nil:
 		c.tokens = cfg.tokens
+	case cfg.workloadTokenFile != "":
+		c.tokens = &WorkloadIdentitySource{OAuth: oauth, TokenFile: cfg.workloadTokenFile}
 	case cfg.serviceAccount != "" && cfg.serviceSecret != "":
 		source := &ServiceAccountSource{OAuth: oauth, Name: cfg.serviceAccount, Secret: cfg.serviceSecret}
 		if cfg.accessToken != "" {
@@ -107,7 +118,7 @@ func New(opts ...Option) (*Client, error) {
 	case cfg.accessToken != "":
 		c.tokens = StaticToken(cfg.accessToken)
 	default:
-		return nil, errors.New("platform: credentials are required (WithServiceAccount, WithAccessToken or WithTokenSource)")
+		return nil, errors.New("platform: credentials are required (WithServiceAccount, WithWorkloadIdentity, WithAccessToken or WithTokenSource)")
 	}
 	return c, nil
 }

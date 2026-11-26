@@ -22,6 +22,13 @@ follows [Semantic Versioning](https://semver.org/).
 - Waiters, paging helpers, retries for reads and error kinds.
 - Cost estimates, personal SSH keys, ingress routes without a certificate
   and with transport settings per service.
+- Preview: published hosts (`ExposeHost`, `UnexposeHost`, `ListExposures`,
+  `GetExposure`), domains of your own (`RegisterDomain`, `VerifyDomain`,
+  `ListDomains`, `RemoveDomain`) and DNS zones of your own (`CreateDNSZone`,
+  `GetDNSZone`, `DeleteDNSZone`). `DNSZone` carries its status and name
+  servers, `DNSRecord` its TTL, and MX is a record type.
+- `WithWorkloadIdentity` and `WorkloadIdentitySource`: sign in with a
+  projected Kubernetes service-account token, without a stored secret.
 
 ### Changed
 

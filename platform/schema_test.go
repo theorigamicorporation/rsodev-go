@@ -217,6 +217,23 @@ func everyOperation(ctx context.Context, c *Client) {
 	_, _ = c.CreateDNSRecord(ctx, "example.com", "shop.example.com", DNSRecordCNAME, "edge.example.net")
 	_, _ = c.UpdateDNSRecord(ctx, "id", "other.example.net")
 	_ = c.DeleteDNSRecord(ctx, "id")
+	_, _ = c.GetDNSZone(ctx, "example.com")
+	_, _ = c.CreateDNSZone(ctx, "example.com")
+	_ = c.DeleteDNSZone(ctx, "example.com")
+
+	_, _ = c.ExposuresAvailable(ctx)
+	_, _ = c.ExposuresPage(ctx, "team", ListOptions{Limit: 10, Search: "shop"})
+	_, _ = c.ListExposures(ctx, "")
+	_, _ = c.GetExposure(ctx, "shop.example.com", "team")
+	_, _ = c.ExposeHost(ctx, ExposeHostInput{Host: "shop.example.com", Target: ExposureTarget{Address: "198.51.100.10", Port: 443, Scheme: ExposureHTTPS},
+		TLS: ExposureTLSAuto, BasicAuth: &ExposureBasicAuth{Username: "u", Password: "password"}, Replace: true, Namespace: "team", Proxied: &yes, TakeOver: true})
+	_, _ = c.ExposeHost(ctx, ExposeHostInput{Host: "shop.example.com", Target: ExposureTarget{Address: "198.51.100.10", Port: 80, Scheme: ExposureHTTP}, RemoveBasicAuth: true})
+	_ = c.UnexposeHost(ctx, "shop.example.com", "team")
+	_, _ = c.DomainsAvailable(ctx)
+	_, _ = c.ListDomains(ctx)
+	_, _ = c.RegisterDomain(ctx, "example.com")
+	_, _ = c.VerifyDomain(ctx, "example.com")
+	_ = c.RemoveDomain(ctx, "example.com")
 
 	_, _ = c.RegistriesPage(ctx, ListOptions{Limit: 10})
 	_, _ = c.GetRegistry(ctx, "images")

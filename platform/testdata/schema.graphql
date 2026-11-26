@@ -250,6 +250,7 @@ input CreateBucketNotificationInput {
 input CreateDnsRecordInput {
   content: String!
   name: String!
+  ttl: Int
   type: DnsRecordType!
   zone: String!
 }
@@ -365,6 +366,7 @@ type DnsRecord {
   createdBy: String
   id: ID!
   name: String!
+  ttl: Int
   type: DnsRecordType!
   updatedAt: String!
   zone: String!
@@ -374,11 +376,22 @@ enum DnsRecordType {
   A
   AAAA
   CNAME
+  MX
   TXT
 }
 
 type DnsZone {
+  createdAt: String
+  delegated: Boolean!
   name: String!
+  nameservers: [String!]!
+  status: DnsZoneStatus!
+}
+
+enum DnsZoneStatus {
+  ACTIVE
+  LOST
+  PENDING
 }
 
 type DockerRegistry {
@@ -411,6 +424,22 @@ enum DockerRegistryStatus {
   READY
 }
 
+type Domain {
+  challengeName: String!
+  challengeValue: String!
+  createdAt: String!
+  domain: String!
+  lastCheckedAt: String
+  status: DomainStatus!
+  verifiedAt: String
+}
+
+enum DomainStatus {
+  LAPSED
+  PENDING
+  VERIFIED
+}
+
 type EnvVar {
   name: String!
   value: String
@@ -429,6 +458,71 @@ type EnvVarSource {
 
 input EnvVarSourceInput {
   secretKeyRef: SecretKeySelectorInput
+}
+
+input ExposeHostInput {
+  basicAuth: ExposureBasicAuthInput
+  host: String!
+  proxied: Boolean
+  replace: Boolean
+  takeOver: Boolean
+  target: ExposureTargetInput!
+  tls: ExposureTls
+}
+
+type Exposure {
+  basicAuthUser: String
+  createdAt: String!
+  createdBy: String
+  dnsManaged: Boolean!
+  dnsTarget: [String!]!
+  domain: String
+  domainVerified: Boolean
+  host: String!
+  managedByPlatform: Boolean!
+  namespace: String!
+  status: ExposureStatus!
+  target: ExposureTarget
+  targetOutOfRange: Boolean!
+  tls: ExposureTls!
+  updatedAt: String!
+}
+
+input ExposureBasicAuthInput {
+  password: String!
+  username: String!
+}
+
+type ExposureListResult {
+  items: [Exposure!]!
+  total: Int!
+}
+
+enum ExposureScheme {
+  HTTP
+  HTTPS
+}
+
+enum ExposureStatus {
+  ACTIVE
+  PENDING
+}
+
+type ExposureTarget {
+  address: String!
+  port: Int!
+  scheme: ExposureScheme!
+}
+
+input ExposureTargetInput {
+  address: String!
+  port: Int!
+  scheme: ExposureScheme!
+}
+
+enum ExposureTls {
+  AUTO
+  NONE
 }
 
 type ExternalService {
@@ -657,11 +751,12 @@ type Mutation {
   addPersonalSshKey(input: AddSshKeyInput!): SshKey!
   addSshKey(input: AddSshKeyInput!): SshKey!
   addTenantClusterPool(cluster: String!, pool: TenantClusterPoolInput!): TenantCluster!
-  backupPostgresCluster(clusterId: ID, clusterName: String!, namespace: String!): BackupEntry!
+  backupPostgresCluster(clusterId: ID, clusterName: String!, namespace: String): BackupEntry!
   createApp(clusterId: ID, input: AppInput!): App!
   createBucket(name: String!): Bucket!
   createBucketNotification(input: CreateBucketNotificationInput!): BucketNotification!
   createDnsRecord(input: CreateDnsRecordInput!): DnsRecord!
+  createDnsZone(domain: String!): DnsZone!
   createDockerRegistry(input: CreateDockerRegistryInput!): DockerRegistry!
   createExternalService(input: CreateExternalServiceInput!): ExternalService!
   createIamRole(input: IamRoleInput!): IamRole!
@@ -670,7 +765,7 @@ type Mutation {
   createMiddleware(input: CreateMiddlewareInput!): IngressMiddleware!
   createObjectStorageKey(name: String!): ObjectStorageKeySecret!
   createPostgresCluster(clusterId: ID, input: PostgresClusterInput!): PostgresCluster!
-  createPostgresDatabase(clusterId: ID, input: DatabaseInput!, namespace: String!): Database!
+  createPostgresDatabase(clusterId: ID, input: DatabaseInput!, namespace: String): Database!
   createQueue(name: String!): Queue!
   createQueueCredential(name: String!): QueueCredentialSecret!
   createQueueWebhook(input: CreateQueueWebhookInput!): QueueWebhook!
@@ -683,10 +778,11 @@ type Mutation {
   createTopicSubscription(input: CreateTopicSubscriptionInput!): TopicSubscription!
   createVolume(input: CreateVolumeInput!): TenantVolume!
   createVpc(cidr: String!, name: String!): VPC!
-  deleteApp(clusterId: ID, name: String!, namespace: String!): Boolean!
+  deleteApp(clusterId: ID, name: String!, namespace: String): Boolean!
   deleteBucket(name: String!): Boolean!
   deleteBucketNotification(bucket: String!, id: ID!): Boolean!
   deleteDnsRecord(id: ID!): Boolean!
+  deleteDnsZone(confirm: String!, name: String!): Boolean!
   deleteDockerRegistry(name: String!): Boolean!
   deleteExternalService(id: ID!): Boolean!
   deleteIamRole(name: String!): Boolean!
@@ -695,8 +791,8 @@ type Mutation {
   deleteMiddleware(id: ID!): Boolean!
   deleteObjectStorageKey(name: String!): Boolean!
   deletePersonalSshKey(id: ID!): Boolean!
-  deletePostgresCluster(clusterId: ID, keepBackups: Boolean!, name: String!, namespace: String!): Boolean!
-  deletePostgresDatabase(clusterId: ID, clusterName: String!, name: String!, namespace: String!): Boolean!
+  deletePostgresCluster(clusterId: ID, keepBackups: Boolean!, name: String!, namespace: String): Boolean!
+  deletePostgresDatabase(clusterId: ID, clusterName: String!, name: String!, namespace: String): Boolean!
   deleteQueue(name: String!): Boolean!
   deleteQueueCredential(name: String!): Boolean!
   deleteQueueWebhook(name: String!): Boolean!
@@ -709,25 +805,28 @@ type Mutation {
   deleteTopic(name: String!): Boolean!
   deleteTopicSubscription(id: ID!): Boolean!
   deleteVolume(name: String!): Boolean!
-  enablePostgresBackups(clusterId: ID, clusterName: String!, namespace: String!, retention: String!): PostgresBackupOverview!
+  enablePostgresBackups(clusterId: ID, clusterName: String!, namespace: String, retention: String!): PostgresBackupOverview!
+  exposeHost(input: ExposeHostInput!, namespace: String): Exposure!
   grantPermissions(permissions: [String!]!, username: String!): IamPrincipal!
   issueDockerRegistryCredentials(input: IssueDockerRegistryCredentialsInput!): DockerRegistryCredentials!
   purgeQueue(name: String!): Boolean!
   rebootInstance(vmid: Int!): Boolean!
-  removePostgresBackupSchedule(clusterId: ID, clusterName: String!, namespace: String!): Boolean!
+  registerDomain(domain: String!): Domain!
+  removeDomain(domain: String!): Boolean!
+  removePostgresBackupSchedule(clusterId: ID, clusterName: String!, namespace: String): Boolean!
   removeTenantClusterPool(cluster: String!, pool: String!): TenantCluster!
   renamePersonalSshKey(id: ID!, name: String!): SshKey!
   renameSshKey(id: ID!, name: String!): SshKey!
   resizeInstance(input: ResizeInstanceInput!): Boolean!
   resizeInstanceDisk(input: ResizeInstanceDiskInput!): Boolean!
-  restorePostgresCluster(clusterId: ID, input: RestorePostgresClusterInput!, namespace: String!): PostgresCluster!
+  restorePostgresCluster(clusterId: ID, input: RestorePostgresClusterInput!, namespace: String): PostgresCluster!
   resumeQueueWebhook(name: String!): QueueWebhook!
   revokePermissions(permissions: [String!]!, username: String!): IamPrincipal!
   rotateServiceAccountToken(id: ID!): RotateServiceAccountTokenPayload!
   runScheduledJob(name: String!): ScheduledJobRun!
   runScheduledMessage(name: String!): ScheduledMessage!
   scaleTenantClusterPool(cluster: String!, pool: String!, replicas: Int!): TenantCluster!
-  setPostgresBackupSchedule(clusterId: ID, clusterName: String!, input: PostgresBackupScheduleInput!, namespace: String!): PostgresBackupOverview!
+  setPostgresBackupSchedule(clusterId: ID, clusterName: String!, input: PostgresBackupScheduleInput!, namespace: String): PostgresBackupOverview!
   setPrincipalAccess(input: SetPrincipalAccessInput!): IamPrincipal!
   setResourceLabels(labels: [ResourceLabelInput!]!, name: String!, resourceType: String!): ResourceLabels!
   setScheduledJobSuspended(name: String!, suspended: Boolean!): ScheduledJob!
@@ -736,16 +835,18 @@ type Mutation {
   stopInstance(vmid: Int!): Boolean!
   tenantClusterKubeconfig(kind: TenantClusterKubeconfigKind!, name: String!): String!
   tenantClusterToken(name: String!, ttlSeconds: Int!): TenantClusterToken!
+  unexposeHost(host: String!, namespace: String): Boolean!
   updateApp(clusterId: ID, input: AppInput!): App!
   updateDnsRecord(id: ID!, input: UpdateDnsRecordInput!): DnsRecord!
   updateIamRole(input: IamRoleInput!): IamRole!
   updatePostgresCluster(clusterId: ID, input: PostgresClusterInput!): PostgresCluster!
-  updatePostgresDatabase(clusterId: ID, input: UpdateDatabaseInput!, namespace: String!): Database!
+  updatePostgresDatabase(clusterId: ID, input: UpdateDatabaseInput!, namespace: String): Database!
   updateQueueWebhook(input: UpdateQueueWebhookInput!): QueueWebhook!
   updateScheduledJob(input: ScheduledJobInput!): ScheduledJob!
   updateScheduledMessage(input: ScheduledMessageInput!): ScheduledMessage!
   updateSecret(input: UpdateSecretInput!): Secret!
   upgradeTenantCluster(cluster: String!, version: String!): TenantCluster!
+  verifyDomain(domain: String!): Domain!
 }
 
 type MyUser {
@@ -871,7 +972,7 @@ type PostgresCluster {
 input PostgresClusterInput {
   metadata: PostgresClusterMetadataInput
   name: String!
-  namespace: String!
+  namespace: String
   spec: PostgresClusterSpecInput!
 }
 
@@ -958,9 +1059,15 @@ type Query {
   dnsAvailable: Boolean!
   dnsRecord(id: ID!): DnsRecord!
   dnsRecords(zone: String): [DnsRecord!]!
+  dnsZone(name: String!): DnsZone!
   dnsZones: [DnsZone!]!
   dockerRegistries(list: List): DockerRegistryListResult!
   dockerRegistry(name: String!): DockerRegistry
+  domains: [Domain!]!
+  domainsAvailable: Boolean!
+  exposure(host: String!, namespace: String): Exposure!
+  exposures(list: List, namespace: String): ExposureListResult!
+  exposuresAvailable: Boolean!
   externalService(id: ID!): ExternalService!
   externalServices(list: List): ExternalServiceListResult!
   iamPrincipals(permission: String): [IamPrincipal!]!
@@ -978,10 +1085,10 @@ type Query {
   objectStorageInfo: ObjectStorageInfo!
   objectStorageKeys: [ObjectStorageKey!]!
   platformEvents: PlatformEventsInfo!
-  postgresBackupOverview(clusterId: ID, clusterName: String!, namespace: String!): PostgresBackupOverview!
+  postgresBackupOverview(clusterId: ID, clusterName: String!, namespace: String): PostgresBackupOverview!
   postgresClusterByCluster(clusterId: ID, name: String!, namespace: String): PostgresCluster
   postgresClustersByCluster(clusterId: ID, namespace: String): PostgresClusterListResult!
-  postgresDatabasesByCluster(clusterId: ID, clusterName: String!, namespace: String!): DatabaseListResult!
+  postgresDatabasesByCluster(clusterId: ID, clusterName: String!, namespace: String): DatabaseListResult!
   queue(name: String!): Queue!
   queueCredentials: [QueueCredential!]!
   queueWebhook(name: String!): QueueWebhook!
@@ -1649,7 +1756,9 @@ type User {
 
 type VPC {
   cidr: String!
+  deletable: Boolean!
   id: ID!
+  instances: Int!
   name: String!
 }
 

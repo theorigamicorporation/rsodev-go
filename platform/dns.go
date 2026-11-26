@@ -8,27 +8,52 @@ const (
 	DNSRecordAAAA  = "AAAA"
 	DNSRecordCNAME = "CNAME"
 	DNSRecordTXT   = "TXT"
+	// DNSRecordMX is for zones of the tenant's own only. The content is a
+	// priority and a mail host: "10 mail.example.com".
+	DNSRecordMX = "MX"
 )
 
-// DNSZone is a zone the tenant may create records in.
+// States of a DNS zone.
+const (
+	// DNSZonePending means the domain is not delegated to the platform's
+	// name servers yet: nothing in the zone answers.
+	DNSZonePending = "PENDING"
+	DNSZoneActive  = "ACTIVE"
+	// DNSZoneLost means the domain is no longer delegated to the platform.
+	DNSZoneLost = "LOST"
+)
+
+// DNSZone is a zone the tenant may create records in: one of its own, or
+// one the platform offers. The name identifies it.
 type DNSZone struct {
-	Name string `json:"name"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	// Nameservers are, for a zone of the tenant's own, the name servers to
+	// set for the domain at its registrar.
+	Nameservers []string `json:"nameservers"`
+	// Delegated is true for a zone of the tenant's own.
+	Delegated bool    `json:"delegated"`
+	CreatedAt *string `json:"createdAt"`
 }
+
+const dnsZoneFields = `name status nameservers delegated createdAt`
 
 // DNSRecord is a DNS record of the tenant.
 type DNSRecord struct {
 	ID   string `json:"id"`
 	Zone string `json:"zone"`
 	// Name is the full name of the record, inside the zone.
-	Name      string  `json:"name"`
-	Type      string  `json:"type"`
-	Content   string  `json:"content"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Content string `json:"content"`
+	// TTL is nil where the platform's default applies.
+	TTL       *int    `json:"ttl"`
 	CreatedAt string  `json:"createdAt"`
 	CreatedBy *string `json:"createdBy"`
 	UpdatedAt string  `json:"updatedAt"`
 }
 
-const dnsRecordFields = `id zone name type content createdAt createdBy updatedAt`
+const dnsRecordFields = `id zone name type content ttl createdAt createdBy updatedAt`
 
 // DNSAvailable reports whether the tenant has any zone to manage records in.
 func (c *Client) DNSAvailable(ctx context.Context) (bool, error) {
@@ -44,8 +69,41 @@ func (c *Client) ListDNSZones(ctx context.Context) ([]DNSZone, error) {
 	var out struct {
 		Zones []DNSZone `json:"dnsZones"`
 	}
-	err := c.Do(ctx, `query { dnsZones { name } }`, nil, &out)
+	err := c.Do(ctx, `query { dnsZones { `+dnsZoneFields+` } }`, nil, &out)
 	return out.Zones, err
+}
+
+// GetDNSZone returns one zone by its domain name.
+func (c *Client) GetDNSZone(ctx context.Context, name string) (*DNSZone, error) {
+	var out struct {
+		Zone DNSZone `json:"dnsZone"`
+	}
+	if err := c.Do(ctx, `query($name: String!) { dnsZone(name: $name) { `+dnsZoneFields+` } }`, map[string]any{"name": name}, &out); err != nil {
+		return nil, err
+	}
+	return &out.Zone, nil
+}
+
+// CreateDNSZone brings a domain of the tenant's own to the platform's DNS.
+// The answer names the name servers to set at the domain's registrar; the
+// zone is pending until that delegation is seen. Asking again for a zone
+// the tenant has returns it.
+func (c *Client) CreateDNSZone(ctx context.Context, domain string) (*DNSZone, error) {
+	var out struct {
+		Zone DNSZone `json:"createDnsZone"`
+	}
+	if err := c.Do(ctx, `mutation($domain: String!) { createDnsZone(domain: $domain) { `+dnsZoneFields+` } }`, map[string]any{"domain": domain}, &out); err != nil {
+		return nil, err
+	}
+	return &out.Zone, nil
+}
+
+// DeleteDNSZone stops hosting a zone of the tenant's own: the domain no
+// longer resolves through the platform. It is refused while the zone has
+// records or published hosts. The zone's name is also sent as the
+// confirmation the platform asks for.
+func (c *Client) DeleteDNSZone(ctx context.Context, name string) error {
+	return c.Do(ctx, `mutation($name: String!, $confirm: String!) { deleteDnsZone(name: $name, confirm: $confirm) }`, map[string]any{"name": name, "confirm": name}, nil)
 }
 
 // ListDNSRecords lists the tenant's records; an empty zone means all zones.

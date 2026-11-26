@@ -81,6 +81,21 @@ c, err := platform.New(
 The client signs in on the first call and renews the token before it
 expires.
 
+### A workload, without a secret
+
+For a program running in Kubernetes, where the cluster and the client id
+have been set up for it with the platform. The program's projected
+service-account token is exchanged for an access token; nothing is stored.
+The file is read again for every exchange, so a rotated token is picked up.
+
+```go
+c, err := platform.New(
+	platform.WithTenant("my-tenant"),
+	platform.WithWorkloadIdentity("/var/run/secrets/tokens/platform"),
+	platform.WithClientID(clientID),
+)
+```
+
 ### A person, on a device
 
 For tools people run. The person confirms a code in the browser; the
@@ -126,13 +141,19 @@ The client cannot renew it.
 | Scheduled jobs | `ListScheduledJobs`, `GetScheduledJob`, `CreateScheduledJob`, `UpdateScheduledJob`, `SetScheduledJobSuspended`, `RunScheduledJob`, `ListScheduledJobRuns`, `ScheduledJobLogs`, `DeleteScheduledJob` |
 | Scheduled messages | `ListScheduledMessages`, `GetScheduledMessage`, `CreateScheduledMessage`, `UpdateScheduledMessage`, `RunScheduledMessage`, `DeleteScheduledMessage` |
 | Networking | external services, ingress routes and middlewares: `List…`, `…Page`, `Get…`, `Create…`, `Delete…`; `CreateVPC` |
-| DNS | `DNSAvailable`, `ListDNSZones`, `ListDNSRecords`, `GetDNSRecord`, `CreateDNSRecord`, `UpdateDNSRecord`, `DeleteDNSRecord` |
+| DNS | `DNSAvailable`, `ListDNSZones`, `ListDNSRecords`, `GetDNSRecord`, `CreateDNSRecord`, `UpdateDNSRecord`, `DeleteDNSRecord`; zones of your own (preview): `GetDNSZone`, `CreateDNSZone`, `DeleteDNSZone` |
+| Published hosts (preview) | `ExposuresAvailable`, `ListExposures`, `ExposuresPage`, `GetExposure`, `ExposeHost`, `UnexposeHost` |
+| Domains of your own (preview) | `DomainsAvailable`, `ListDomains`, `RegisterDomain`, `VerifyDomain`, `RemoveDomain` |
 | Kubernetes | `ListKubernetesClusters`, `GetKubernetesCluster`, `CreateKubernetesCluster`, `DeleteKubernetesCluster`, `ScaleNodePool`, `AddNodePool`, `RemoveNodePool`, `UpgradeKubernetesCluster`, `WaitKubernetesClusterReady`, `Kubeconfig`, `ClusterToken` |
 | Container registries | `ListRegistries`, `GetRegistry`, `CreateRegistry`, `DeleteRegistry`, `IssueRegistryCredentials` |
 | Secrets | `ListSecrets`, `GetSecret`, `CreateSecret`, `UpdateSecret`, `DeleteSecret` |
 | SSH keys | `ListSSHKeys`, `GetSSHKey`, `AddSSHKey`, `RenameSSHKey`, `DeleteSSHKey` |
 | Volumes | `ListVolumes`, `CreateVolume`, `DeleteVolume` |
 | Access | service accounts, roles, `ListPrincipals`, `SetPrincipalAccess` (per-object scopes), `GrantPermissions`, `RevokePermissions`, resource labels |
+
+Operations marked preview are not switched on everywhere yet: where they are
+not, `ExposuresAvailable` and `DomainsAvailable` answer false and the other
+calls fail with `NOT_CONFIGURED`.
 | Account | `Me`, `Permissions`, `Quota`, `PlatformEvents` |
 | AI models | `ListAIModels`, `Chat` (streaming) |
 
@@ -182,7 +203,7 @@ case platform.KindNotFound, platform.KindInvalid, platform.KindUnauthenticated, 
 |---|---|
 | `WithTenant` | the tenant every call is scoped to |
 | `WithRegion` | a region of the tenant; the platform has a default |
-| `WithServiceAccount`, `WithAccessToken`, `WithTokenSource` | credentials |
+| `WithServiceAccount`, `WithWorkloadIdentity`, `WithAccessToken`, `WithTokenSource` | credentials |
 | `WithEndpoint`, `WithTokenURL`, `WithClientID` | other deployments of the platform |
 | `WithHTTPClient` | your own `*http.Client` (60 second timeout by default) |
 | `WithUserAgent` | your tool's product token, sent before the SDK's |

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -144,6 +145,28 @@ func (o OAuth) ServiceAccount(ctx context.Context, name, secret string) (TokenSe
 	return out.set(time.Now())
 }
 
+// Workload exchanges a signed token that identifies a workload, such as a
+// Kubernetes service-account token projected for the identity provider, for
+// an access token (client credentials with a JWT client assertion, RFC
+// 7523). No secret is stored anywhere. scope may be empty.
+func (o OAuth) Workload(ctx context.Context, assertion, scope string) (TokenSet, error) {
+	o = o.resolve(ctx)
+	form := url.Values{
+		"grant_type":            {"client_credentials"},
+		"client_id":             {o.ClientID},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+		"client_assertion":      {assertion},
+	}
+	if scope != "" {
+		form.Set("scope", scope)
+	}
+	var out tokenResponse
+	if err := o.post(ctx, o.TokenURL, form, &out); err != nil {
+		return TokenSet{}, err
+	}
+	return out.set(time.Now())
+}
+
 // Refresh trades a refresh token for a new token set.
 func (o OAuth) Refresh(ctx context.Context, refreshToken string) (TokenSet, error) {
 	o = o.resolve(ctx)
@@ -270,6 +293,48 @@ func (s *ServiceAccountSource) Token(ctx context.Context) (string, error) {
 		return s.current.AccessToken, nil
 	}
 	set, err := s.OAuth.ServiceAccount(ctx, s.Name, s.Secret)
+	if err != nil {
+		return "", err
+	}
+	s.current = set
+	return set.AccessToken, nil
+}
+
+// WorkloadIdentitySource signs in with the token in TokenFile and renews
+// the access token shortly before it expires. The file is read again for
+// every exchange, because whoever projects it also rotates it.
+type WorkloadIdentitySource struct {
+	OAuth OAuth
+	// TokenFile holds the workload's signed token, for example a projected
+	// Kubernetes service-account token whose audience is the identity
+	// provider.
+	TokenFile string
+	// Scope is sent with the exchange when it is not empty.
+	Scope string
+
+	mu      sync.Mutex
+	current TokenSet
+}
+
+// Token implements TokenSource.
+func (s *WorkloadIdentitySource) Token(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.current.Valid(time.Now()) {
+		return s.current.AccessToken, nil
+	}
+	if s.TokenFile == "" {
+		return "", fmt.Errorf("%w: no workload token file is set", ErrNotSignedIn)
+	}
+	raw, err := os.ReadFile(s.TokenFile)
+	if err != nil {
+		return "", fmt.Errorf("platform: reading the workload token: %w", err)
+	}
+	assertion := strings.TrimSpace(string(raw))
+	if assertion == "" {
+		return "", fmt.Errorf("%w: the workload token file %s is empty", ErrNotSignedIn, s.TokenFile)
+	}
+	set, err := s.OAuth.Workload(ctx, assertion, s.Scope)
 	if err != nil {
 		return "", err
 	}

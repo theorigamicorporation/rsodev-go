@@ -17,6 +17,8 @@ const (
 	CodeAuthorization  = "AUTHORIZATION_ERROR"
 	CodeAuthentication = "AUTHENTICATION_ERROR"
 	CodeNotConfigured  = "NOT_CONFIGURED"
+	// CodeVerificationFailed is VerifyDomain not finding the TXT record yet.
+	CodeVerificationFailed = "VERIFICATION_FAILED"
 )
 
 // GraphQLError is one entry of a GraphQL errors array.
