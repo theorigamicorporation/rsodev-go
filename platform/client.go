@@ -29,6 +29,7 @@ type config struct {
 	accessToken                   string
 	serviceAccount, serviceSecret string
 	workloadTokenFile             string
+	workloadScope                 string
 	tokens                        TokenSource
 	userAgent                     string
 	httpClient                    *http.Client
@@ -53,6 +54,12 @@ func WithServiceAccount(name, secret string) Option {
 // is set with WithClientID.
 func WithWorkloadIdentity(tokenFile string) Option {
 	return func(c *config) { c.workloadTokenFile = tokenFile }
+}
+
+// WithWorkloadIdentityScope sets the scope WithWorkloadIdentity asks for
+// when it signs in. Without it no scope is sent.
+func WithWorkloadIdentityScope(scope string) Option {
+	return func(c *config) { c.workloadScope = scope }
 }
 
 // WithAccessToken uses a ready access token instead of a service account. The
@@ -108,7 +115,7 @@ func New(opts ...Option) (*Client, error) {
 	case cfg.tokens != nil:
 		c.tokens = cfg.tokens
 	case cfg.workloadTokenFile != "":
-		c.tokens = &WorkloadIdentitySource{OAuth: oauth, TokenFile: cfg.workloadTokenFile}
+		c.tokens = &WorkloadIdentitySource{OAuth: oauth, TokenFile: cfg.workloadTokenFile, Scope: cfg.workloadScope}
 	case cfg.serviceAccount != "" && cfg.serviceSecret != "":
 		source := &ServiceAccountSource{OAuth: oauth, Name: cfg.serviceAccount, Secret: cfg.serviceSecret}
 		if cfg.accessToken != "" {

@@ -29,6 +29,21 @@ type ExposureTarget struct {
 	Port    int    `json:"port"`
 	// Scheme is ExposureHTTP or ExposureHTTPS.
 	Scheme string `json:"scheme"`
+	// InsecureSkipVerify says whether the platform skips checking the
+	// certificate an HTTPS target presents. A target is an address, which a
+	// certificate rarely names, so a new host with an HTTPS target has to
+	// say true (or false, to have it checked). Left nil when publishing, a
+	// host that exists keeps its setting. Ignored for HTTP.
+	InsecureSkipVerify *bool `json:"insecureSkipVerify"`
+}
+
+// ExposureReplacedRecord is a DNS record that was removed to publish a host
+// (TakeOver).
+type ExposureReplacedRecord struct {
+	Type      string `json:"type"`
+	Name      string `json:"name"`
+	Content   string `json:"content"`
+	RemovedAt string `json:"removedAt"`
 }
 
 // Exposure is a hostname that is reachable from the internet and where its
@@ -51,7 +66,14 @@ type Exposure struct {
 	Target *ExposureTarget `json:"target"`
 	// TargetOutOfRange means the target is no longer in the tenant's
 	// network: publish the host again with its new address.
-	TargetOutOfRange  bool    `json:"targetOutOfRange"`
+	TargetOutOfRange bool `json:"targetOutOfRange"`
+	// Proxied says whether the host's DNS record goes through the DNS
+	// proxy, as last applied. Nil when the platform keeps no record for
+	// the host.
+	Proxied *bool `json:"proxied"`
+	// ReplacedRecords are the DNS records take-overs removed at this name,
+	// oldest first. Platform administrators only; empty for everyone else.
+	ReplacedRecords   []ExposureReplacedRecord `json:"replacedRecords"`
 	ManagedByPlatform bool    `json:"managedByPlatform"`
 	BasicAuthUser     *string `json:"basicAuthUser"`
 	CreatedAt         string  `json:"createdAt"`
@@ -59,7 +81,7 @@ type Exposure struct {
 	UpdatedAt         string  `json:"updatedAt"`
 }
 
-const exposureFields = `host namespace status tls dnsManaged dnsTarget domain domainVerified target { address port scheme } targetOutOfRange managedByPlatform basicAuthUser createdAt createdBy updatedAt`
+const exposureFields = `host namespace status tls dnsManaged dnsTarget domain domainVerified target { address port scheme insecureSkipVerify } targetOutOfRange proxied replacedRecords { type name content removedAt } managedByPlatform basicAuthUser createdAt createdBy updatedAt`
 
 // ExposureBasicAuth makes visitors of a host sign in.
 type ExposureBasicAuth struct {
@@ -91,10 +113,11 @@ type ExposeHostInput struct {
 }
 
 func (in ExposeHostInput) variable() map[string]any {
-	input := map[string]any{
-		"host":   in.Host,
-		"target": map[string]any{"address": in.Target.Address, "port": in.Target.Port, "scheme": in.Target.Scheme},
+	target := map[string]any{"address": in.Target.Address, "port": in.Target.Port, "scheme": in.Target.Scheme}
+	if in.Target.InsecureSkipVerify != nil {
+		target["insecureSkipVerify"] = *in.Target.InsecureSkipVerify
 	}
+	input := map[string]any{"host": in.Host, "target": target}
 	if in.TLS != "" {
 		input["tls"] = in.TLS
 	}

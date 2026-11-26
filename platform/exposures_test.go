@@ -184,3 +184,73 @@ func TestWorkloadIdentityReadsTheFileForEveryExchange(t *testing.T) {
 		t.Fatal("a missing token file must fail")
 	}
 }
+
+func TestExposeHostTargetCertificateSetting(t *testing.T) {
+	g := newGateway(t)
+	var targets []map[string]any
+	g.handle = func(_ string, variables map[string]any) (any, string, string) {
+		input := variables["input"].(map[string]any)
+		targets = append(targets, input["target"].(map[string]any))
+		return map[string]any{"exposeHost": map[string]any{"host": input["host"], "namespace": "acme", "status": "ACTIVE", "tls": "AUTO",
+			"target":  map[string]any{"address": "198.51.100.10", "port": 8443, "scheme": "HTTPS", "insecureSkipVerify": true},
+			"proxied": false, "dnsTarget": []string{},
+			"replacedRecords": []map[string]any{{"type": "A", "name": "shop.example.com", "content": "203.0.113.7", "removedAt": "2026-01-01T00:00:00Z"}}}}, "", ""
+	}
+	c := g.client()
+	target := ExposureTarget{Address: "198.51.100.10", Port: 8443, Scheme: ExposureHTTPS}
+
+	got, err := c.ExposeHost(context.Background(), ExposeHostInput{Host: "shop.example.com", Target: target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, present := targets[0]["insecureSkipVerify"]; present {
+		t.Errorf("a nil setting must be left out so that a host keeps what it has: %v", targets[0])
+	}
+	if got.Target.InsecureSkipVerify == nil || !*got.Target.InsecureSkipVerify || got.Proxied == nil || *got.Proxied ||
+		len(got.ReplacedRecords) != 1 || got.ReplacedRecords[0].Content != "203.0.113.7" {
+		t.Errorf("unexpected exposure: %+v", got)
+	}
+
+	for _, want := range []bool{true, false} {
+		value := want
+		target.InsecureSkipVerify = &value
+		if _, err := c.ExposeHost(context.Background(), ExposeHostInput{Host: "shop.example.com", Target: target}); err != nil {
+			t.Fatal(err)
+		}
+		if sent, present := targets[len(targets)-1]["insecureSkipVerify"]; !present || sent != want {
+			t.Errorf("want insecureSkipVerify %v sent, got %v", want, targets[len(targets)-1])
+		}
+	}
+}
+
+func TestWorkloadIdentityScope(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(file, []byte("signed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var scopes []string
+	var present []bool
+	token := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		scopes = append(scopes, r.Form.Get("scope"))
+		present = append(present, r.Form.Has("scope"))
+		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "token", "expires_in": 600})
+	}))
+	defer token.Close()
+	g := newGateway(t)
+	g.handle = func(string, map[string]any) (any, string, string) { return map[string]any{"ready": true}, "", "" }
+
+	for _, opts := range [][]Option{{}, {WithWorkloadIdentityScope("profile api")}} {
+		all := append([]Option{WithTenant("acme"), WithWorkloadIdentity(file), WithEndpoint(g.URL + "/graphql"), WithTokenURL(token.URL), WithClientID("workload")}, opts...)
+		c, err := New(all...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := c.Do(context.Background(), `query { ready }`, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(scopes) != 2 || present[0] || scopes[1] != "profile api" {
+		t.Fatalf("want no scope, then the one set: %v %v", scopes, present)
+	}
+}

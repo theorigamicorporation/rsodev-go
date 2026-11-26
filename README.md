@@ -204,6 +204,7 @@ case platform.KindNotFound, platform.KindInvalid, platform.KindUnauthenticated, 
 | `WithTenant` | the tenant every call is scoped to |
 | `WithRegion` | a region of the tenant; the platform has a default |
 | `WithServiceAccount`, `WithWorkloadIdentity`, `WithAccessToken`, `WithTokenSource` | credentials |
+| `WithWorkloadIdentityScope` | scope the workload sign-in asks for |
 | `WithEndpoint`, `WithTokenURL`, `WithClientID` | other deployments of the platform |
 | `WithHTTPClient` | your own `*http.Client` (60 second timeout by default) |
 | `WithUserAgent` | your tool's product token, sent before the SDK's |

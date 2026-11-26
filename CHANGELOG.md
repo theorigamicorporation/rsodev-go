@@ -29,6 +29,10 @@ follows [Semantic Versioning](https://semver.org/).
   servers, `DNSRecord` its TTL, and MX is a record type.
 - `WithWorkloadIdentity` and `WorkloadIdentitySource`: sign in with a
   projected Kubernetes service-account token, without a stored secret.
+- `WithWorkloadIdentityScope`: the scope the workload sign-in asks for.
+- Published hosts: `ExposureTarget.InsecureSkipVerify` (whether the
+  certificate of an HTTPS target is checked; a new host with an HTTPS target
+  has to say), `Exposure.Proxied` and `Exposure.ReplacedRecords`.
 
 ### Changed
 

@@ -481,6 +481,8 @@ type Exposure {
   host: String!
   managedByPlatform: Boolean!
   namespace: String!
+  proxied: Boolean
+  replacedRecords: [ExposureReplacedRecord!]!
   status: ExposureStatus!
   target: ExposureTarget
   targetOutOfRange: Boolean!
@@ -498,6 +500,13 @@ type ExposureListResult {
   total: Int!
 }
 
+type ExposureReplacedRecord {
+  content: String!
+  name: String!
+  removedAt: String!
+  type: String!
+}
+
 enum ExposureScheme {
   HTTP
   HTTPS
@@ -510,12 +519,14 @@ enum ExposureStatus {
 
 type ExposureTarget {
   address: String!
+  insecureSkipVerify: Boolean!
   port: Int!
   scheme: ExposureScheme!
 }
 
 input ExposureTargetInput {
   address: String!
+  insecureSkipVerify: Boolean
   port: Int!
   scheme: ExposureScheme!
 }
