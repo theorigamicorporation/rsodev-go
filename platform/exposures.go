@@ -74,11 +74,11 @@ type Exposure struct {
 	// ReplacedRecords are the DNS records take-overs removed at this name,
 	// oldest first. Platform administrators only; empty for everyone else.
 	ReplacedRecords   []ExposureReplacedRecord `json:"replacedRecords"`
-	ManagedByPlatform bool    `json:"managedByPlatform"`
-	BasicAuthUser     *string `json:"basicAuthUser"`
-	CreatedAt         string  `json:"createdAt"`
-	CreatedBy         *string `json:"createdBy"`
-	UpdatedAt         string  `json:"updatedAt"`
+	ManagedByPlatform bool                     `json:"managedByPlatform"`
+	BasicAuthUser     *string                  `json:"basicAuthUser"`
+	CreatedAt         string                   `json:"createdAt"`
+	CreatedBy         *string                  `json:"createdBy"`
+	UpdatedAt         string                   `json:"updatedAt"`
 }
 
 const exposureFields = `host namespace status tls dnsManaged dnsTarget domain domainVerified target { address port scheme insecureSkipVerify } targetOutOfRange proxied replacedRecords { type name content removedAt } managedByPlatform basicAuthUser createdAt createdBy updatedAt`
