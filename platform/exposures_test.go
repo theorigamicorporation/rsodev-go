@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -129,6 +130,50 @@ func TestDNSZoneRoundTrip(t *testing.T) {
 	}
 	if err := c.DeleteDNSZone(context.Background(), "example.com"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCreateDNSRecordSendsATTLOnlyWhenSet(t *testing.T) {
+	g := newGateway(t)
+	var inputs []map[string]any
+	g.handle = func(_ string, variables map[string]any) (any, string, string) {
+		input := variables["input"].(map[string]any)
+		inputs = append(inputs, input)
+		if input["zone"] != "example.com" && input["ttl"] != nil {
+			g.fields = []map[string]any{{"field": "ttl", "code": "INVALID", "message": "The time to live can only be set in a zone of your own", "details": map[string]any{}}}
+			return nil, CodeValidation, "API Error occurred"
+		}
+		return map[string]any{"createDnsRecord": map[string]any{"id": "r1", "zone": input["zone"], "name": input["name"],
+			"type": input["type"], "content": input["content"], "ttl": input["ttl"]}}, "", ""
+	}
+	c := g.client()
+
+	plain, err := c.CreateDNSRecord(context.Background(), "example.com", "www.example.com", DNSRecordA, "198.51.100.10")
+	if err != nil || plain.TTL != nil || plain.Name != "www.example.com" {
+		t.Fatalf("%+v, %v", plain, err)
+	}
+	if _, present := inputs[0]["ttl"]; present || len(inputs[0]) != 4 {
+		t.Errorf("a record without a TTL must not send one: %v", inputs[0])
+	}
+
+	in := CreateDNSRecordInput{Zone: "example.com", Name: "api.example.com", Type: DNSRecordCNAME, Content: "edge.example.net", TTL: 300}
+	timed, err := c.CreateDNSRecordWith(context.Background(), in)
+	if err != nil || timed.TTL == nil || *timed.TTL != 300 || timed.Content != "edge.example.net" {
+		t.Fatalf("%+v, %v", timed, err)
+	}
+	if inputs[1]["ttl"] != float64(300) || inputs[1]["type"] != "CNAME" {
+		t.Errorf("unexpected input: %v", inputs[1])
+	}
+
+	in.Zone, in.Name = "apps.example.net", "shop.apps.example.net"
+	_, err = c.CreateDNSRecordWith(context.Background(), in)
+	if !HasCode(err, CodeValidation) || KindOf(err) != KindInvalid ||
+		err.Error() != "API Error occurred (VALIDATION_ERROR): ttl: The time to live can only be set in a zone of your own" {
+		t.Fatalf("the platform's reason must reach the caller: %v", err)
+	}
+	var refused *Error
+	if !errors.As(err, &refused) || len(refused.Fields()) != 1 || refused.Fields()[0] != (FieldError{Field: "ttl", Message: "The time to live can only be set in a zone of your own", Code: "INVALID"}) {
+		t.Fatalf("unexpected fields: %+v", refused.Fields())
 	}
 }
 

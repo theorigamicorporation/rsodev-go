@@ -39,18 +39,65 @@ type Error struct {
 	code    string
 }
 
-// Error implements error.
+// FieldError is what the platform found wrong with one field of an input.
+type FieldError struct {
+	// Field is the name of the input's field, for example "ttl".
+	Field   string
+	Message string
+	// Code is the platform's reason, for example INVALID.
+	Code string
+}
+
+// Fields lists the fields the platform refused, in the order it named them.
+// A refused input usually carries its explanation here and only a general
+// text in the message.
+func (e *Error) Fields() []FieldError {
+	var out []FieldError
+	for _, ge := range e.Errors {
+		out = append(out, ge.fields()...)
+	}
+	return out
+}
+
+func (ge GraphQLError) fields() []FieldError {
+	list, _ := ge.Extensions["fields"].([]any)
+	var out []FieldError
+	for _, item := range list {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		f := FieldError{}
+		f.Field, _ = entry["field"].(string)
+		f.Message, _ = entry["message"].(string)
+		f.Code, _ = entry["code"].(string)
+		if f.Field != "" || f.Message != "" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// Error implements error. The fields the platform refused follow the message
+// they came with.
 func (e *Error) Error() string {
 	if len(e.Errors) == 0 {
 		return "platform: " + e.Message
 	}
 	parts := make([]string, 0, len(e.Errors))
 	for _, ge := range e.Errors {
+		part := ge.Message
 		if code, ok := ge.Extensions["code"].(string); ok && code != "" {
-			parts = append(parts, fmt.Sprintf("%s (%s)", ge.Message, code))
-		} else {
-			parts = append(parts, ge.Message)
+			part = fmt.Sprintf("%s (%s)", ge.Message, code)
 		}
+		for _, f := range ge.fields() {
+			text := f.Message
+			if text == "" {
+				text = f.Code
+			}
+			part += fmt.Sprintf(": %s: %s", f.Field, text)
+		}
+		parts = append(parts, part)
 	}
 	return strings.Join(parts, "; ")
 }

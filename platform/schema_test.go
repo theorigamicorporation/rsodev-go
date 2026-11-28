@@ -215,6 +215,7 @@ func everyOperation(ctx context.Context, c *Client) {
 	_, _ = c.ListDNSRecords(ctx, "example.com")
 	_, _ = c.GetDNSRecord(ctx, "id")
 	_, _ = c.CreateDNSRecord(ctx, "example.com", "shop.example.com", DNSRecordCNAME, "edge.example.net")
+	_, _ = c.CreateDNSRecordWith(ctx, CreateDNSRecordInput{Zone: "example.com", Name: "www.example.com", Type: DNSRecordA, Content: "198.51.100.10", TTL: 300})
 	_, _ = c.UpdateDNSRecord(ctx, "id", "other.example.net")
 	_ = c.DeleteDNSRecord(ctx, "id")
 	_, _ = c.GetDNSZone(ctx, "example.com")

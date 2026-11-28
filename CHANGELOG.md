@@ -33,6 +33,13 @@ follows [Semantic Versioning](https://semver.org/).
 - Published hosts: `ExposureTarget.InsecureSkipVerify` (whether the
   certificate of an HTTPS target is checked; a new host with an HTTPS target
   has to say), `Exposure.Proxied` and `Exposure.ReplacedRecords`.
+- `CreateDNSRecordWith` and `CreateDNSRecordInput`: create a DNS record
+  with a TTL (60 to 86400 seconds, zones of your own only). `CreateDNSRecord`
+  is unchanged and keeps the platform's default.
+- `Error.Fields` and `FieldError`: the fields of an input the platform
+  refused, each with its reason. `Error.Error` now ends with them, so a
+  refused input reads `... (VALIDATION_ERROR): ttl: <reason>` instead of the
+  general message alone.
 
 ### Changed
 
