@@ -141,7 +141,7 @@ The client cannot renew it.
 | Scheduled jobs | `ListScheduledJobs`, `GetScheduledJob`, `CreateScheduledJob`, `UpdateScheduledJob`, `SetScheduledJobSuspended`, `RunScheduledJob`, `ListScheduledJobRuns`, `ScheduledJobLogs`, `DeleteScheduledJob` |
 | Scheduled messages | `ListScheduledMessages`, `GetScheduledMessage`, `CreateScheduledMessage`, `UpdateScheduledMessage`, `RunScheduledMessage`, `DeleteScheduledMessage` |
 | Networking | external services, ingress routes and middlewares: `List…`, `…Page`, `Get…`, `Create…`, `Delete…`; `CreateVPC` |
-| DNS | `DNSAvailable`, `ListDNSZones`, `ListDNSRecords`, `GetDNSRecord`, `CreateDNSRecord`, `UpdateDNSRecord`, `DeleteDNSRecord`; zones of your own (preview): `GetDNSZone`, `CreateDNSZone`, `DeleteDNSZone` |
+| DNS | `DNSAvailable`, `ListDNSZones`, `ListDNSRecords`, `GetDNSRecord`, `CreateDNSRecord`, `CreateDNSRecordWith` (with a TTL), `UpdateDNSRecord`, `DeleteDNSRecord`; zones of your own (preview): `GetDNSZone`, `CreateDNSZone`, `DeleteDNSZone` |
 | Published hosts (preview) | `ExposuresAvailable`, `ListExposures`, `ExposuresPage`, `GetExposure`, `ExposeHost`, `UnexposeHost` |
 | Domains of your own (preview) | `DomainsAvailable`, `ListDomains`, `RegisterDomain`, `VerifyDomain`, `RemoveDomain` |
 | Kubernetes | `ListKubernetesClusters`, `GetKubernetesCluster`, `CreateKubernetesCluster`, `DeleteKubernetesCluster`, `ScaleNodePool`, `AddNodePool`, `RemoveNodePool`, `UpgradeKubernetesCluster`, `WaitKubernetesClusterReady`, `Kubeconfig`, `ClusterToken` |

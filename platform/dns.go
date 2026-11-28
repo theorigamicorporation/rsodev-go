@@ -126,13 +126,43 @@ func (c *Client) GetDNSRecord(ctx context.Context, id string) (*DNSRecord, error
 	return &out.Record, nil
 }
 
-// CreateDNSRecord creates a record. name is the full name inside the zone.
+// CreateDNSRecordInput describes a record to create.
+type CreateDNSRecordInput struct {
+	Zone string
+	// Name is the full name of the record, inside the zone.
+	Name    string
+	Type    string
+	Content string
+	// TTL is the number of seconds a resolver may keep the answer, 60 to
+	// 86400, for a record in a zone of the tenant's own. Zero leaves it to
+	// the platform's default, and is the only value a zone the platform
+	// offers accepts. The records of one name and type share one TTL. It
+	// cannot be changed afterwards: delete the record and create another.
+	TTL int
+}
+
+func (in CreateDNSRecordInput) variable() map[string]any {
+	input := map[string]any{"zone": in.Zone, "name": in.Name, "type": in.Type, "content": in.Content}
+	if in.TTL != 0 {
+		input["ttl"] = in.TTL
+	}
+	return input
+}
+
+// CreateDNSRecord creates a record with the platform's default TTL. name is
+// the full name inside the zone. CreateDNSRecordWith takes the optional
+// settings too.
 func (c *Client) CreateDNSRecord(ctx context.Context, zone, name, recordType, content string) (*DNSRecord, error) {
+	return c.CreateDNSRecordWith(ctx, CreateDNSRecordInput{Zone: zone, Name: name, Type: recordType, Content: content})
+}
+
+// CreateDNSRecordWith creates a record from an input, which can carry a TTL.
+func (c *Client) CreateDNSRecordWith(ctx context.Context, in CreateDNSRecordInput) (*DNSRecord, error) {
 	var out struct {
 		Record DNSRecord `json:"createDnsRecord"`
 	}
 	err := c.Do(ctx, `mutation($input: CreateDnsRecordInput!) { createDnsRecord(input: $input) { `+dnsRecordFields+` } }`,
-		map[string]any{"input": map[string]any{"zone": zone, "name": name, "type": recordType, "content": content}}, &out)
+		map[string]any{"input": in.variable()}, &out)
 	return &out.Record, err
 }
 

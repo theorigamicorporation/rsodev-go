@@ -20,6 +20,8 @@ type gateway struct {
 	queries []string
 	handle  func(query string, variables map[string]any) (data any, code, message string)
 	rest    func(path string, body map[string]any) (status int, answer any)
+	// fields, when set, are the refused fields an error answer carries.
+	fields []map[string]any
 }
 
 func newGateway(t *testing.T) *gateway {
@@ -46,8 +48,12 @@ func newGateway(t *testing.T) *gateway {
 		g.queries = append(g.queries, req.Query)
 		data, code, message := g.handle(req.Query, req.Variables)
 		if code != "" {
+			extensions := map[string]any{"code": code}
+			if g.fields != nil {
+				extensions["fields"] = g.fields
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"data": nil, "errors": []map[string]any{{"message": message, "extensions": map[string]any{"code": code}}},
+				"data": nil, "errors": []map[string]any{{"message": message, "extensions": extensions}},
 			})
 			return
 		}
